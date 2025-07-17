@@ -1,4 +1,4 @@
-import { AuthCard } from "@/components/auth/auth-card";
+import { AuthCard } from "@/components/modules/auth/auth-card";
 
 export default async function Page({
   searchParams,
