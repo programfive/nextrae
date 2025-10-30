@@ -39,7 +39,7 @@ export function LoginForm({
       });
       if (error) throw error;
       // Redirect to the main protected dashboard once the session is active.
-      router.push("/protected/dashboard");
+      router.push("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
