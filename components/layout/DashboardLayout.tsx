@@ -178,9 +178,6 @@ export function DashboardLayout({
         <div className="flex-1 flex flex-col">
           <header className="border-b border-border bg-background px-6 py-4 flex items-center gap-4">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-primary">Sistema Biblioteca UNIBETH</h1>
-            </div>
           </header>
           <main className="flex-1 overflow-auto bg-background">{children}</main>
         </div>

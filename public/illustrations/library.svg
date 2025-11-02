@@ -1,0 +1,21 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="420" fill="none"/>
+  <g stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="80" y="140" width="60" height="180" rx="6"/>
+    <line x1="80" y1="180" x2="140" y2="180"/>
+    <line x1="80" y1="220" x2="140" y2="220"/>
+    <rect x="160" y="120" width="40" height="200" rx="6"/>
+    <rect x="210" y="150" width="55" height="170" rx="6"/>
+    <line x1="210" y1="195" x2="265" y2="195"/>
+    <rect x="280" y="110" width="70" height="210" rx="6"/>
+    <line x1="280" y1="155" x2="350" y2="155"/>
+    <line x1="280" y1="195" x2="350" y2="195"/>
+    <rect x="370" y="140" width="65" height="180" rx="6"/>
+    <rect x="445" y="125" width="40" height="195" rx="6"/>
+    <rect x="495" y="160" width="65" height="160" rx="6"/>
+    <line x1="495" y1="200" x2="560" y2="200"/>
+    <line x1="70" y1="325" x2="570" y2="325"/>
+    <rect x="120" y="80" width="400" height="20" rx="4"/>
+    <line x1="140" y1="90" x2="500" y2="90"/>
+  </g>
+</svg>
