@@ -18,6 +18,7 @@ export const forgotPasswordSchema = z.object({
 
 export const signUpSchema = z
   .object({
+    fullName: z.string().min(1, "El nombre completo es requerido"),
     email: z
       .string()
       .min(1, "El correo es requerido")
@@ -30,3 +31,6 @@ export const signUpSchema = z
     path: ["repeatPassword"],
     message: "Las contraseñas no coinciden",
   });
+export const updatePasswordSchema = z.object({
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+});

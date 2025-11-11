@@ -1,12 +1,9 @@
-import { ForgotPasswordForm } from "@/components/forgot-password-form";
-import AuthLayout from "@/components/auth/auth-layout";
+import AuthLayout from "@/components/app/auth/auth-layout";
+import { ForgotPasswordForm } from "@/components/app/auth/forgot-password-form";
 
 export default function Page() {
   return (
-    <AuthLayout
-      title="Restablecer contraseña"
-      subtitle="Ingresa tu correo y te enviaremos un enlace para restablecerla."
-    >
+    <AuthLayout>
       <ForgotPasswordForm />
     </AuthLayout>
   );

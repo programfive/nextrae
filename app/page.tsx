@@ -1,4 +1,4 @@
-import { AuthButton } from "@/components/auth-button";
+import { AuthButton } from "@/components/app/auth/auth-button";
 import { DeployButton } from "@/components/deploy-button";
 import { EnvVarWarning } from "@/components/env-var-warning";
 import { ThemeSwitcher } from "@/components/theme-switcher";
