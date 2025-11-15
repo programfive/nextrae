@@ -6,19 +6,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, Calendar, Clock, CheckCircle2, AlertCircle, FileText } from "lucide-react";
+import type { Loan } from "@/actions/loans";
 
-const activeLoans = [
-  { id: 1, book: "Inteligencia Artificial Moderna", author: "Stuart Russell", loanDate: "2025-10-20", dueDate: "2025-11-05", status: "activo", renewals: 0 },
-  { id: 2, book: "Diseño de Bases de Datos", author: "Carlos Coronel", loanDate: "2025-10-25", dueDate: "2025-11-10", status: "activo", renewals: 1 },
-];
+type Props = { loans?: Loan[]; materials?: { id: string; title: string; author: string }[] };
 
-const loanHistory = [
-  { id: 3, book: "Marketing Digital", author: "Philip Kotler", loanDate: "2025-09-15", returnDate: "2025-09-30", status: "devuelto", onTime: true },
-  { id: 4, book: "Programación en Python", author: "Mark Lutz", loanDate: "2025-08-10", returnDate: "2025-08-28", status: "devuelto", onTime: false },
-  { id: 5, book: "Cálculo Diferencial", author: "James Stewart", loanDate: "2025-07-05", returnDate: "2025-07-20", status: "devuelto", onTime: true },
-];
+export function LoansPage({ loans, materials }: Props) {
+  const matMap = new Map((materials ?? []).map((m) => [m.id, m]));
+  const activeLoans = (loans ?? []).filter((l) => l.status === "active").map((l) => ({
+    id: l.id,
+    book: matMap.get(l.material_id)?.title ?? "Material",
+    author: matMap.get(l.material_id)?.author ?? "",
+    loanDate: l.loan_date,
+    dueDate: l.due_date,
+    status: "activo" as const,
+    renewals: l.renewals,
+  }));
 
-export function LoansPage() {
+  const loanHistory = (loans ?? []).filter((l) => l.status !== "active").map((l) => ({
+    id: l.id,
+    book: matMap.get(l.material_id)?.title ?? "Material",
+    author: matMap.get(l.material_id)?.author ?? "",
+    loanDate: l.loan_date,
+    returnDate: l.return_date ?? l.due_date,
+    status: l.status === "returned" ? "devuelto" : "vencido",
+    onTime: !!(l.return_date && new Date(l.return_date) <= new Date(l.due_date)),
+  }));
 
   const getDaysRemaining = (dueDate: string) => {
     const today = new Date();

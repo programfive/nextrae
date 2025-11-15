@@ -17,39 +17,35 @@ import {
   Clock,
   XCircle,
 } from "lucide-react";
+import type { Reservation } from "@/actions/reservations";
 
-const activeReservations = [
-  {
-    id: 1,
-    book: "Cálculo Diferencial e Integral",
-    author: "James Stewart",
-    reservationDate: "2025-10-22",
-    expiryDate: "2025-10-27",
-    status: "pendiente",
-    pickupLocation: "Sala de Préstamos - Piso 1",
-  },
-];
+type Props = { reservations?: Reservation[]; materials?: { id: string; title: string; author: string }[] };
 
-const reservationHistory = [
-  {
-    id: 2,
-    book: "Marketing Digital",
-    author: "Philip Kotler",
-    reservationDate: "2025-09-10",
-    completedDate: "2025-09-13",
-    status: "completada",
-  },
-  {
-    id: 3,
-    book: "Contabilidad Financiera",
-    author: "Warren Reeve",
-    reservationDate: "2025-08-20",
-    expiryDate: "2025-08-25",
-    status: "expirada",
-  },
-];
+export function ReservationsPage({ reservations, materials }: Props) {
+  const matMap = new Map((materials ?? []).map((m) => [m.id, m]));
+  const activeReservations = (reservations ?? [])
+    .filter((r) => r.status === "pending")
+    .map((r) => ({
+      id: r.id,
+      book: matMap.get(r.material_id)?.title ?? "Material",
+      author: matMap.get(r.material_id)?.author ?? "",
+      reservationDate: r.reservation_date,
+      expiryDate: r.expiry_date,
+      status: "pendiente" as const,
+      pickupLocation: "Sala de Préstamos - Piso 1",
+    }));
 
-export function ReservationsPage() {
+  const reservationHistory = (reservations ?? [])
+    .filter((r) => r.status !== "pending")
+    .map((r) => ({
+      id: r.id,
+      book: matMap.get(r.material_id)?.title ?? "Material",
+      author: matMap.get(r.material_id)?.author ?? "",
+      reservationDate: r.reservation_date,
+      completedDate: r.completed_date ?? undefined,
+      expiryDate: r.expiry_date,
+      status: r.status === "completed" ? "completada" : r.status === "expired" ? "expirada" : "cancelada",
+    }));
   const getDaysRemaining = (expiryDate: string) => {
     const today = new Date();
     const expiry = new Date(expiryDate);

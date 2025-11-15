@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,25 +22,61 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import type { Material } from "@/actions/catalog";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+type CategoryLite = { id: string; name: string; slug: string | null };
+type Props = { materials?: Material[]; categories?: CategoryLite[]; initialCategory?: string };
 
-const mockBooks = [
-  { id: 1, title: "Inteligencia Artificial Moderna", author: "Stuart Russell, Peter Norvig", category: "Tecnología", year: 2021, type: "Físico", status: "Disponible", isbn: "978-0136042594", description: "El libro de IA más completo y actualizado. Cubre aprendizaje automático, procesamiento de lenguaje natural y más." },
-  { id: 2, title: "Diseño de Bases de Datos", author: "Carlos Coronel, Steven Morris", category: "Tecnología", year: 2020, type: "Físico", status: "Prestado", isbn: "978-1337627900", description: "Guía completa sobre diseño, implementación y gestión de bases de datos relacionales." },
-  { id: 3, title: "Marketing Digital", author: "Philip Kotler", category: "Negocios", year: 2022, type: "Digital", status: "Disponible", isbn: "978-0134601564", description: "Estrategias de marketing en la era digital, incluyendo redes sociales y SEO." },
-  { id: 4, title: "Cálculo Diferencial e Integral", author: "James Stewart", category: "Matemáticas", year: 2019, type: "Físico", status: "Disponible", isbn: "978-1285740621", description: "Texto fundamental para el estudio del cálculo universitario." },
-  { id: 5, title: "Programación en Python", author: "Mark Lutz", category: "Tecnología", year: 2023, type: "Digital", status: "Disponible", isbn: "978-1449355739", description: "Guía definitiva para aprender Python desde principiante hasta avanzado." },
-  { id: 6, title: "Contabilidad Financiera", author: "Warren Reeve", category: "Negocios", year: 2021, type: "Físico", status: "Reservado", isbn: "978-1337272094", description: "Fundamentos de contabilidad financiera con casos prácticos." },
-];
+type UIBook = {
+  id: string;
+  title: string;
+  author: string;
+  category: string;
+  year: number;
+  type: "Físico" | "Digital" | "Tesis";
+  status: "Disponible" | "Prestado" | "Reservado";
+  isbn: string;
+  description: string;
+};
 
-export function CatalogPage() {
+export function CatalogPage({ materials, categories = [], initialCategory = "all" }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState(initialCategory);
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedBook, setSelectedBook] = useState<typeof mockBooks[0] | null>(null);
+  const [selectedBook, setSelectedBook] = useState<UIBook | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [reserving, setReserving] = useState(false);
+  const [reserveMsg, setReserveMsg] = useState<string | null>(null);
 
-  const filteredBooks = mockBooks.filter((book) => {
+  // Mantener el estado en sync si cambia la URL externamente
+  useEffect(() => {
+    const urlCategory = searchParams.get("category") ?? "all";
+    if (urlCategory !== categoryFilter) setCategoryFilter(urlCategory);
+  }, [searchParams, categoryFilter]);
+
+  // Map server materials (enums) to UI labels in Spanish like the mock
+  const mapType = (t: Material["type"]) =>
+    t === "physical" ? "Físico" : t === "digital" ? "Digital" : "Tesis";
+  const mapStatus = (s: Material["status"]) =>
+    s === "available" ? "Disponible" : s === "loaned" ? "Prestado" : "Reservado";
+
+  const sourceBooks: UIBook[] = (materials ?? []).map((m) => ({
+    id: m.id,
+    title: m.title,
+    author: m.author,
+    category: m.categories?.name ?? m.category ?? "General",
+    year: m.year ?? 0,
+    type: mapType(m.type) as UIBook["type"],
+    status: mapStatus(m.status) as UIBook["status"],
+    isbn: m.isbn ?? "",
+    description: m.description ?? "",
+  }));
+
+  const filteredBooks = sourceBooks.filter((book) => {
     const matchesSearch =
       book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -53,9 +89,31 @@ export function CatalogPage() {
     return matchesSearch && matchesCategory && matchesType && matchesStatus;
   });
 
-  const handleBookClick = (book: typeof mockBooks[0]) => {
+  const handleBookClick = (book: UIBook) => {
     setSelectedBook(book);
     setShowDialog(true);
+  };
+
+  const handleReserve = async (materialId: string) => {
+    try {
+      setReserveMsg(null);
+      setReserving(true);
+      const res = await fetch("/api/reservations/reserve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ materialId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setReserveMsg(json.error || "No se pudo crear la reserva");
+        return;
+      }
+      setReserveMsg("Reserva creada correctamente");
+    } catch {
+      setReserveMsg("Error inesperado al reservar");
+    } finally {
+      setReserving(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -75,7 +133,7 @@ export function CatalogPage() {
     <div className="p-6 space-y-6">
       <div>
         <h2>Catálogo de Biblioteca</h2>
-        <p className="text-muted-foreground">Explora nuestra colección de {mockBooks.length} materiales</p>
+        <p className="text-muted-foreground">Explora nuestra colección de {sourceBooks.length} materiales</p>
       </div>
 
       <Card>
@@ -94,15 +152,26 @@ export function CatalogPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div>
               <Label>Categoría</Label>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select
+                value={categoryFilter}
+                onValueChange={(val) => {
+                  setCategoryFilter(val);
+                  const params = new URLSearchParams(searchParams.toString());
+                  if (!val || val === "all") params.delete("category");
+                  else params.set("category", val);
+                  router.push(`${pathname}?${params.toString()}`);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas las categorías</SelectItem>
-                  <SelectItem value="Tecnología">Tecnología</SelectItem>
-                  <SelectItem value="Negocios">Negocios</SelectItem>
-                  <SelectItem value="Matemáticas">Matemáticas</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.slug ?? c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -252,9 +321,14 @@ export function CatalogPage() {
               <>
                 {selectedBook?.status === "Disponible" && (
                   <>
-                    <Button variant="outline" className="flex-1">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      disabled={reserving}
+                      onClick={() => selectedBook && handleReserve(selectedBook.id)}
+                    >
                       <Calendar className="mr-2 h-4 w-4" />
-                      Reservar
+                      {reserving ? "Reservando..." : "Reservar"}
                     </Button>
                     <Button className="flex-1">
                       <BookOpen className="mr-2 h-4 w-4" />
@@ -276,6 +350,9 @@ export function CatalogPage() {
               </>
             )}
           </DialogFooter>
+          {reserveMsg && (
+            <p className="text-sm text-muted-foreground px-2 pb-2">{reserveMsg}</p>
+          )}
         </DialogContent>
       </Dialog>
     </div>
