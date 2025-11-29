@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import type { Material } from "@/actions/catalog";
 import { Badge } from "@/components/ui/badge";
-import { Search, BookOpen, Download, Calendar, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,17 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import type { Material } from "@/actions/catalog";
+import { BookOpen, Calendar, ChevronLeft, ChevronRight, Eye, Plus, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 type CategoryLite = { id: string; name: string; slug: string | null };
 type Props = { materials?: Material[]; categories?: CategoryLite[]; initialCategory?: string };
 
@@ -37,6 +37,7 @@ type UIBook = {
   status: "Disponible" | "Prestado" | "Reservado";
   isbn: string;
   description: string;
+  fileUrl?: string | null;
 };
 
 export function CatalogPage({ materials, categories = [], initialCategory = "all" }: Props) {
@@ -74,6 +75,7 @@ export function CatalogPage({ materials, categories = [], initialCategory = "all
     status: mapStatus(m.status) as UIBook["status"],
     isbn: m.isbn ?? "",
     description: m.description ?? "",
+    fileUrl: m.file_url ?? m.digital_assets?.[0]?.file_path ?? null,
   }));
 
   const filteredBooks = sourceBooks.filter((book) => {
@@ -93,6 +95,9 @@ export function CatalogPage({ materials, categories = [], initialCategory = "all
     setSelectedBook(book);
     setShowDialog(true);
   };
+
+ 
+ 
 
   const handleReserve = async (materialId: string) => {
     try {
@@ -128,12 +133,18 @@ export function CatalogPage({ materials, categories = [], initialCategory = "all
         return "bg-gray-100";
     }
   };
-
+console.log("selected book ",selectedBook?.fileUrl);
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h2>Catálogo de Biblioteca</h2>
-        <p className="text-muted-foreground">Explora nuestra colección de {sourceBooks.length} materiales</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2>Catálogo de Biblioteca</h2>
+          <p className="text-muted-foreground">Explora nuestra colección de {sourceBooks.length} materiales</p>
+        </div>
+        <Button onClick={() => router.push("/catalog/new")}>
+          <Plus className="mr-2 h-4 w-4" />
+          Agregar material
+        </Button>
       </div>
 
       <Card>
@@ -212,8 +223,10 @@ export function CatalogPage({ materials, categories = [], initialCategory = "all
         <p className="text-sm text-muted-foreground mb-4">Mostrando {filteredBooks.length} resultado(s)</p>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredBooks.map((book) => (
-            <Card key={book.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleBookClick(book)}>
+          {filteredBooks.map((book) => {
+            console.log(book)
+            return (
+              <Card key={book.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleBookClick(book)}>
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -239,7 +252,8 @@ export function CatalogPage({ materials, categories = [], initialCategory = "all
                 <Button variant="outline" size="sm" className="w-full">Ver Detalles</Button>
               </CardFooter>
             </Card>
-          ))}
+            )
+          })}
         </div>
 
         {filteredBooks.length === 0 && (
@@ -308,13 +322,15 @@ export function CatalogPage({ materials, categories = [], initialCategory = "all
           <DialogFooter className="gap-2">
             {selectedBook?.type === "Digital" ? (
               <>
-                <Button variant="outline" className="flex-1">
-                  <Eye className="mr-2 h-4 w-4" />
-                  Leer en Línea
-                </Button>
-                <Button className="flex-1">
-                  <Download className="mr-2 h-4 w-4" />
-                  Descargar
+                <Button  className="w-full md:w-fit" asChild>
+                  <a
+                    href={selectedBook?.fileUrl || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Leer ahora
+                  </a>
                 </Button>
               </>
             ) : (

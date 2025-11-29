@@ -2,21 +2,21 @@
 
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { InputPassword } from "@/components/ui/input-password";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -86,8 +86,7 @@ export function UpdatePasswordForm({
                     <FormItem>
                       <FormLabel>Nueva contraseña</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
+                        <InputPassword
                           disabled={isPending}
                           {...field}
                         />

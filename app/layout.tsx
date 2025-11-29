@@ -1,9 +1,9 @@
 import { DevTools } from "@/components/dev-tools";
+import { Toaster } from "@/components/ui/sonner";
 import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
 import { Geist } from "next/font/google";
 import "./globals.css";
-
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "http://localhost:3000";
@@ -36,6 +36,7 @@ export default function RootLayout({
         >
           <DevTools />
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

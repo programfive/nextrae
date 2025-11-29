@@ -34,3 +34,24 @@ export const signUpSchema = z
 export const updatePasswordSchema = z.object({
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
 });
+
+export const userDialogSchema = z.object({
+  full_name: z.string().min(1, "El nombre completo es requerido"),
+  email: z
+    .string()
+    .min(1, "El correo es requerido")
+    .email("Correo inválido")
+    .regex(/@unibeth\.edu\.bo$/i, "Solo se permiten correos @unibeth.edu.bo"),
+  career_id: z.string().optional(),
+  password: z.string().optional(),
+  repeatPassword: z.string().optional(),
+})
+  .refine((data) => {
+    if (data.password && data.repeatPassword) {
+      return data.password === data.repeatPassword;
+    }
+    return true;
+  }, {
+    path: ["repeatPassword"],
+    message: "Las contraseñas no coinciden",
+  });

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 
 export type MaterialFilters = {
   search?: string;
@@ -24,6 +25,7 @@ export type Material = {
   isbn: string | null;
   description: string | null;
   created_at: string;
+  file_url?: string | null;
   digital_assets?: {
     id: string;
     material_id: string;
@@ -32,6 +34,79 @@ export type Material = {
     size_bytes: number | null;
   }[];
 };
+
+export type CreateMaterialInput = {
+  title: string;
+  author: string;
+  categoryIds?: string[];
+  year?: string | null;
+  type: Material["type"];
+  status: Material["status"];
+  isbn?: string | null;
+  description?: string | null;
+  filePath?: string | null;
+};
+
+export async function createMaterial(input: CreateMaterialInput) {
+  const supabase = await createClient();
+
+  const title = input.title.trim();
+  const author = input.author.trim();
+  const isbn = input.isbn?.trim() || null;
+  const description = input.description?.trim() || null;
+  const category_id = input.categoryIds?.[0] ?? null;
+  const filePath = input.filePath?.trim() || null;
+
+  const yearNumber = input.year ? Number(input.year) : null;
+  const year = yearNumber && !Number.isNaN(yearNumber) ? yearNumber : null;
+
+  if (!title || !author) {
+    return { ok: false, id: null as string | null, error: "Título y autor son obligatorios" } as const;
+  }
+
+  const { data, error } = await supabase
+    .from("materials")
+    .insert({
+      title,
+      author,
+      category_id,
+      year,
+      type: input.type,
+      status: input.status,
+      isbn,
+      description,
+      file_url: filePath,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error("createMaterial error", error);
+    return { ok: false, id: null as string | null, error: error.message } as const;
+  }
+
+  const materialId = (data as { id: string } | null)?.id ?? null;
+
+  if (materialId && input.type === "digital" && filePath) {
+    const { error: digitalError } = await supabase
+      .from("digital_assets")
+      .insert({
+        material_id: materialId,
+        file_path: filePath,
+        pages: null,
+        size_bytes: null,
+      });
+
+    if (digitalError) {
+      console.error("createMaterial digital_assets error", digitalError);
+      return { ok: false, id: materialId, error: digitalError.message } as const;
+    }
+  }
+
+  revalidatePath("/catalog");
+
+  return { ok: true, id: materialId, error: null } as const;
+}
 
 export async function getMaterials(filters: MaterialFilters = {}) {
   const supabase = await createClient();
@@ -43,7 +118,7 @@ export async function getMaterials(filters: MaterialFilters = {}) {
   let query = supabase
     .from("materials")
     .select(
-      "id,title,author,category,category_id,year,type,status,isbn,description,created_at, digital_assets(id,material_id,file_path,pages,size_bytes), categories(name,slug)",
+      "id,title,author,category,category_id,year,type,status,isbn,description,created_at,file_url, digital_assets(id,material_id,file_path,pages,size_bytes), categories(name,slug)",
       { count: "exact" }
     )
     .order("created_at", { ascending: false });
@@ -88,7 +163,7 @@ export async function getMaterialById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("materials")
-    .select("id,title,author,category,category_id,year,type,status,isbn,description,created_at, digital_assets(id,material_id,file_path,pages,size_bytes), categories(name,slug)")
+    .select("id,title,author,category,category_id,year,type,status,isbn,description,created_at,file_url, digital_assets(id,material_id,file_path,pages,size_bytes), categories(name,slug)")
     .eq("id", id)
     .single();
   return { data: (data as unknown as Material) ?? null, error } as const;

@@ -11,6 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { InputPassword } from "@/components/ui/input-password";
 import { cn } from "@/lib/utils";
 import { loginSchema } from "@/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -107,7 +108,7 @@ export function LoginForm({
                     </Link>
                   </div>
                   <FormControl>
-                    <Input type="password" disabled={isPending} {...field} />
+                    <InputPassword disabled={isPending} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

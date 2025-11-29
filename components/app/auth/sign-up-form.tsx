@@ -12,6 +12,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { InputPassword } from "@/components/ui/input-password";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { signUpSchema } from "@/schemas";
@@ -141,8 +142,7 @@ export function SignUpForm({
                 <FormItem>
                   <FormLabel>Contraseña</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
+                    <InputPassword
                       required
                       disabled={isPending}
                       {...field}
@@ -159,8 +159,7 @@ export function SignUpForm({
                 <FormItem>
                   <FormLabel>Repetir contraseña</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
+                    <InputPassword
                       required
                       disabled={isPending}
                       {...field}
