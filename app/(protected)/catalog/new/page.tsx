@@ -1,6 +1,9 @@
 import { createMaterial } from "@/actions/catalog";
 import { getCategories } from "@/actions/categories";
-import { CreateMaterialPage, type MaterialFormInput } from "@/components/app/catalog/CreateMaterialPage";
+import {
+  CreateMaterialPage,
+  type MaterialFormInput,
+} from "@/components/app/catalog/CreateMaterialPage";
 import { redirect } from "next/navigation";
 
 export default async function Page() {
@@ -14,6 +17,7 @@ export default async function Page() {
       author: values.author,
       categoryIds: values.categoryIds,
       year: values.year,
+      copies: values.copies,
       type: values.type,
       status: values.status,
       isbn: values.isbn,
@@ -28,5 +32,10 @@ export default async function Page() {
     redirect("/catalog");
   }
 
-  return <CreateMaterialPage categories={categories ?? []} createMaterialAction={createMaterialAction} />;
+  return (
+    <CreateMaterialPage
+      categories={categories ?? []}
+      createMaterialAction={createMaterialAction}
+    />
+  );
 }

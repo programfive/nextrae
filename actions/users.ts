@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export type RoleCode = "admin" | "librarian" | "user";
+export type RoleCode = "administrador" | "bibliotecario" | "usuario";
 
 export type UserListItem = {
   user_id: string;
@@ -36,9 +36,7 @@ export async function listUsers(params?: {
 
   if (params?.search) {
     const search = `%${params.search}%`;
-    query = query.or(
-      `full_name.ilike.${search},email.ilike.${search}`
-    );
+    query = query.or(`full_name.ilike.${search},email.ilike.${search}`);
   }
 
   if (params?.role && params.role !== "all") {
@@ -49,36 +47,83 @@ export async function listUsers(params?: {
 
   if (error) {
     console.error("listUsers error", error);
-    return { data: [] as UserListItem[], stats: null as UserStats | null, error } as const;
+    return {
+      data: [] as UserListItem[],
+      stats: null as UserStats | null,
+      error,
+    } as const;
   }
 
-  const users: UserListItem[] = (data ?? []).map((row: any) => ({
-    user_id: row.user_id,
-    full_name: row.full_name,
-    email: row.email,
-    role_code: (row.roles?.code ?? "user") as RoleCode,
-    role_name: row.roles?.name ?? row.roles?.code ?? "user",
-    // TODO: podríamos calcular loans_count con una vista o agregación; por ahora 0
-    loans_count: 0,
-    created_at: row.created_at ?? null,
-    email_confirmed: !!row.email_confirmed,
-  }));
+  type DbUserRow = {
+    user_id: string;
+    full_name: string;
+    email: string;
+    created_at: string | null;
+    email_confirmed: boolean | null;
+    role_id: number | null;
+    roles: { code: RoleCode | null; name: string | null }[] | null;
+  };
+
+  const users: UserListItem[] = ((data ?? []) as DbUserRow[]).map((row) => {
+    const role = row.roles?.[0] ?? null;
+
+    // Fallback basado en role_id si el join de roles no trajo datos
+    let fallbackCode: RoleCode = "usuario";
+    switch (row.role_id) {
+      case 1:
+        fallbackCode = "administrador";
+        break;
+      case 2:
+        fallbackCode = "bibliotecario";
+        break;
+      case 3:
+        fallbackCode = "usuario";
+        break;
+      default:
+        fallbackCode = "usuario";
+    }
+
+    const code = (role?.code as RoleCode | null) ?? fallbackCode;
+    const name =
+      role?.name ??
+      (code === "administrador"
+        ? "Administrador"
+        : code === "bibliotecario"
+        ? "Bibliotecario"
+        : "Usuario");
+
+    return {
+      user_id: row.user_id,
+      full_name: row.full_name,
+      email: row.email,
+      role_code: code,
+      role_name: name,
+      // TODO: podríamos calcular loans_count con una vista o agregación; por ahora 0
+      loans_count: 0,
+      created_at: row.created_at ?? null,
+      email_confirmed: !!row.email_confirmed,
+    };
+  });
 
   const stats: UserStats = {
     total: users.length,
     active: users.length, // por ahora todos activos
     byRole: {
-      admin: users.filter((u) => u.role_code === "admin").length,
-      librarian: users.filter((u) => u.role_code === "librarian").length,
-      user: users.filter((u) => u.role_code === "user").length,
+      administrador: users.filter((u) => u.role_code === "administrador")
+        .length,
+      bibliotecario: users.filter((u) => u.role_code === "bibliotecario")
+        .length,
+      usuario: users.filter((u) => u.role_code === "usuario").length,
     },
   };
 
   return { data: users, stats, error: null } as const;
 }
 
-async function getRoleIdByCode(code: RoleCode, supabase: any) {
-  const { data, error } = await supabase
+async function getRoleIdByCode(code: RoleCode, supabase: unknown) {
+  const client = supabase as Awaited<ReturnType<typeof createClient>>;
+
+  const { data, error } = await client
     .from("roles")
     .select("id")
     .eq("code", code)
@@ -96,10 +141,13 @@ export async function createUserAction(formData: FormData) {
 
   const full_name = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
-  const role = (String(formData.get("role") ?? "user") as RoleCode);
+  const role = String(formData.get("role") ?? "usuario") as RoleCode;
 
   if (!full_name || !email) {
-    return { ok: false, error: "Nombre completo y email son obligatorios" } as const;
+    return {
+      ok: false,
+      error: "Nombre completo y email son obligatorios",
+    } as const;
   }
 
   const { data: userAuth, error: userAuthError } = await supabase
@@ -144,7 +192,7 @@ export async function updateUserAction(formData: FormData) {
   const user_id = String(formData.get("user_id") ?? "").trim();
   const full_name = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
-  const role = (String(formData.get("role") ?? "user") as RoleCode);
+  const role = String(formData.get("role") ?? "user") as RoleCode;
 
   if (!user_id) {
     return { ok: false, error: "Falta el identificador de usuario" } as const;
@@ -152,7 +200,7 @@ export async function updateUserAction(formData: FormData) {
 
   const roleId = await getRoleIdByCode(role, supabase);
 
-  const payload: Record<string, any> = { role_id: roleId };
+  const payload: Record<string, unknown> = { role_id: roleId };
   if (full_name) payload.full_name = full_name;
   if (email) payload.email = email;
 

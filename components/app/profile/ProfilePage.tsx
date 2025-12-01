@@ -226,7 +226,7 @@ export function ProfilePage({ role }: ProfilePageProps) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Rol</span>
-                  <Badge className="bg-primary">
+                  <Badge>
                     <Shield className="mr-1 h-3 w-3" />
                     {getRoleName()}
                   </Badge>
@@ -248,7 +248,7 @@ export function ProfilePage({ role }: ProfilePageProps) {
 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Estado</span>
-                  <Badge className="bg-accent">Activo</Badge>
+                  <Badge variant="secondary">Activo</Badge>
                 </div>
               </div>
             </CardContent>
@@ -287,11 +287,11 @@ export function ProfilePage({ role }: ProfilePageProps) {
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Notificaciones por Email</span>
-                <Badge className="bg-accent">Activo</Badge>
+                <Badge variant="secondary">Activo</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Recordatorios</span>
-                <Badge className="bg-accent">Activo</Badge>
+                <Badge variant="secondary">Activo</Badge>
               </div>
               <Button variant="outline" size="sm" className="w-full mt-2">
                 Configurar Preferencias

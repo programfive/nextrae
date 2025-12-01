@@ -33,6 +33,8 @@ export type Material = {
     pages: number | null;
     size_bytes: number | null;
   }[];
+  copies_total?: number | null;
+  copies_available?: number | null;
 };
 
 export type CreateMaterialInput = {
@@ -40,6 +42,7 @@ export type CreateMaterialInput = {
   author: string;
   categoryIds?: string[];
   year?: string | null;
+  copies?: string | null;
   type: Material["type"];
   status: Material["status"];
   isbn?: string | null;
@@ -60,8 +63,18 @@ export async function createMaterial(input: CreateMaterialInput) {
   const yearNumber = input.year ? Number(input.year) : null;
   const year = yearNumber && !Number.isNaN(yearNumber) ? yearNumber : null;
 
+  const copiesNumber = input.copies ? Number(input.copies) : null;
+  const copies_total =
+    copiesNumber && !Number.isNaN(copiesNumber) && copiesNumber > 0
+      ? copiesNumber
+      : 1;
+
   if (!title || !author) {
-    return { ok: false, id: null as string | null, error: "Título y autor son obligatorios" } as const;
+    return {
+      ok: false,
+      id: null as string | null,
+      error: "Título y autor son obligatorios",
+    } as const;
   }
 
   const { data, error } = await supabase
@@ -76,13 +89,19 @@ export async function createMaterial(input: CreateMaterialInput) {
       isbn,
       description,
       file_url: filePath,
+      copies_total,
+      copies_available: copies_total,
     })
     .select("id")
     .maybeSingle();
 
   if (error) {
     console.error("createMaterial error", error);
-    return { ok: false, id: null as string | null, error: error.message } as const;
+    return {
+      ok: false,
+      id: null as string | null,
+      error: error.message,
+    } as const;
   }
 
   const materialId = (data as { id: string } | null)?.id ?? null;
@@ -99,7 +118,11 @@ export async function createMaterial(input: CreateMaterialInput) {
 
     if (digitalError) {
       console.error("createMaterial digital_assets error", digitalError);
-      return { ok: false, id: materialId, error: digitalError.message } as const;
+      return {
+        ok: false,
+        id: materialId,
+        error: digitalError.message,
+      } as const;
     }
   }
 
@@ -118,18 +141,23 @@ export async function getMaterials(filters: MaterialFilters = {}) {
   let query = supabase
     .from("materials")
     .select(
-      "id,title,author,category,category_id,year,type,status,isbn,description,created_at,file_url, digital_assets(id,material_id,file_path,pages,size_bytes), categories(name,slug)",
+      "id,title,author,category,category_id,year,type,status,isbn,description,created_at,file_url,copies_total,copies_available, digital_assets(id,material_id,file_path,pages,size_bytes), categories(name,slug)",
       { count: "exact" }
     )
     .order("created_at", { ascending: false });
 
   if (filters.category && filters.category !== "all") {
     const c = filters.category.trim();
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(c);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        c
+      );
     if (isUuid) {
       query = query.eq("category_id", c);
     } else {
-      query = query.or([`category.eq.${c}`, `categories.slug.eq.${c}`].join(","));
+      query = query.or(
+        [`category.eq.${c}`, `categories.slug.eq.${c}`].join(",")
+      );
     }
   }
   if (filters.type && (filters.type as string) !== "all") {
@@ -163,18 +191,108 @@ export async function getMaterialById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("materials")
-    .select("id,title,author,category,category_id,year,type,status,isbn,description,created_at,file_url, digital_assets(id,material_id,file_path,pages,size_bytes), categories(name,slug)")
+    .select(
+      "id,title,author,category,category_id,year,type,status,isbn,description,created_at,file_url,copies_total,copies_available, digital_assets(id,material_id,file_path,pages,size_bytes), categories(name,slug)"
+    )
     .eq("id", id)
     .single();
   return { data: (data as unknown as Material) ?? null, error } as const;
 }
 
+export type UpdateMaterialInput = CreateMaterialInput & { id: string };
+
+export async function updateMaterial(input: UpdateMaterialInput) {
+  const supabase = await createClient();
+
+  const title = input.title.trim();
+  const author = input.author.trim();
+  const isbn = input.isbn?.trim() || null;
+  const description = input.description?.trim() || null;
+  const category_id = input.categoryIds?.[0] ?? null;
+  const filePath = input.filePath?.trim() || null;
+
+  const yearNumber = input.year ? Number(input.year) : null;
+  const year = yearNumber && !Number.isNaN(yearNumber) ? yearNumber : null;
+
+  const copiesNumber = input.copies ? Number(input.copies) : null;
+  const copies_total =
+    copiesNumber && !Number.isNaN(copiesNumber) && copiesNumber > 0
+      ? copiesNumber
+      : undefined;
+
+  if (!title || !author) {
+    return {
+      ok: false,
+      id: input.id,
+      error: "Título y autor son obligatorios",
+    } as const;
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    title,
+    author,
+    category_id,
+    year,
+    type: input.type,
+    status: input.status,
+    isbn,
+    description,
+    file_url: filePath,
+  };
+
+  if (copies_total !== undefined) {
+    updatePayload.copies_total = copies_total;
+  }
+
+  const { error } = await supabase
+    .from("materials")
+    .update(updatePayload)
+    .eq("id", input.id);
+
+  if (error) {
+    console.error("updateMaterial error", error);
+    return { ok: false, id: input.id, error: error.message } as const;
+  }
+
+  if (input.type === "digital" && filePath) {
+    const { data: existing, error: existingError } = await supabase
+      .from("digital_assets")
+      .select("id")
+      .eq("material_id", input.id)
+      .maybeSingle();
+
+    if (!existingError) {
+      if (existing) {
+        await supabase
+          .from("digital_assets")
+          .update({ file_path: filePath })
+          .eq("material_id", input.id);
+      } else {
+        await supabase
+          .from("digital_assets")
+          .insert({ material_id: input.id, file_path: filePath });
+      }
+    }
+  }
+
+  revalidatePath("/catalog");
+
+  return { ok: true, id: input.id, error: null } as const;
+}
+
 export async function getMaterialsByIds(ids: string[]) {
-  if (!ids?.length) return { data: [] as Pick<Material, "id" | "title" | "author">[], error: null } as const;
+  if (!ids?.length)
+    return {
+      data: [] as Pick<Material, "id" | "title" | "author">[],
+      error: null,
+    } as const;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("materials")
     .select("id,title,author")
     .in("id", ids);
-  return { data: (data ?? []) as { id: string; title: string; author: string }[], error } as const;
+  return {
+    data: (data ?? []) as { id: string; title: string; author: string }[],
+    error,
+  } as const;
 }

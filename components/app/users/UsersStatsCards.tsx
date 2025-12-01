@@ -23,18 +23,18 @@ export function UsersStatsCards({ users, stats }: UsersStatsCardsProps) {
     },
     {
       label: "Administradores",
-      value:
-        (stats?.byRole.admin ?? users.filter((u) => u.role_code === "admin").length).
-          toString(),
+      value: (
+        stats?.byRole?.administrador ??
+        users.filter((u) => u.role_code === "administrador").length
+      ).toString(),
       icon: Shield,
     },
     {
       label: "Bibliotecarios",
-      value:
-        (
-          stats?.byRole.librarian ??
-          users.filter((u) => u.role_code === "librarian").length
-        ).toString(),
+      value: (
+        stats?.byRole?.bibliotecario ??
+        users.filter((u) => u.role_code === "bibliotecario").length
+      ).toString(),
       icon: Library,
     },
   ];

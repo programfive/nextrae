@@ -28,19 +28,11 @@ type UsersTableProps = {
 
 const getRoleBadge = (role: RoleCode) => {
   switch (role) {
-    case "admin":
-      return (
-        <Badge className="bg-primary">
-          Administrador
-        </Badge>
-      );
-    case "librarian":
-      return (
-        <Badge className="bg-accent">
-          Bibliotecario
-        </Badge>
-      );
-    case "user":
+    case "administrador":
+      return <Badge>Administrador</Badge>;
+    case "bibliotecario":
+      return <Badge variant="secondary">Bibliotecario</Badge>;
+    case "usuario":
       return <Badge variant="outline">Estudiante</Badge>;
     default:
       return <Badge>{role}</Badge>;
@@ -49,7 +41,7 @@ const getRoleBadge = (role: RoleCode) => {
 
 const getStatusBadge = (status: string) => {
   if (status === "activo") {
-    return <Badge className="bg-accent">Activo</Badge>;
+    return <Badge variant="secondary">Activo</Badge>;
   }
   return <Badge variant="secondary">Inactivo</Badge>;
 };
@@ -63,7 +55,7 @@ const getEmailVerifiedBadge = (confirmed: boolean) => {
 
 export function UsersTable({ users, onEditUser }: UsersTableProps) {
   return (
-    <Table>
+    <Table className="w-full">
       <TableHeader>
         <TableRow>
           <TableHead>Nombre</TableHead>
@@ -80,7 +72,9 @@ export function UsersTable({ users, onEditUser }: UsersTableProps) {
         {users.map((user) => (
           <TableRow key={user.user_id}>
             <TableCell>{user.full_name}</TableCell>
-            <TableCell className="text-muted-foreground">{user.email}</TableCell>
+            <TableCell className="text-muted-foreground">
+              {user.email}
+            </TableCell>
             <TableCell>{getEmailVerifiedBadge(user.email_confirmed)}</TableCell>
             <TableCell>{getRoleBadge(user.role_code)}</TableCell>
             <TableCell className="text-muted-foreground">

@@ -1,13 +1,12 @@
-import { createReservation } from "@/actions/reservations";
+import { renewLoan } from "@/actions/loans";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 export async function POST(req: Request) {
   try {
     const schema = z.object({
-      materialId: z.string().min(1, "materialId requerido"),
+      loanId: z.string().min(1, "loanId requerido"),
     });
-
     const parsed = schema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json(
@@ -19,12 +18,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const { materialId } = parsed.data;
-    const result = await createReservation(materialId);
-
+    const { loanId } = parsed.data;
+    const result = await renewLoan(loanId);
     if (!result.ok) {
       return NextResponse.json(
-        { ok: false, error: result.error ?? "No se pudo crear la reserva" },
+        { ok: false, error: result.error ?? "No se pudo renovar el préstamo" },
         { status: 400 }
       );
     }

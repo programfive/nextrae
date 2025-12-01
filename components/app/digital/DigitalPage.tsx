@@ -1,24 +1,17 @@
 "use client";
-import { Badge } from "@/components/ui/badge";
+import type { DigitalMaterial, UserDownload } from "@/actions/digital";
+import { CatalogBookDialog } from "@/components/app/catalog/CatalogBookDialog";
+import { CatalogGrid } from "@/components/app/catalog/CatalogGrid";
+import type { UIBook } from "@/components/app/catalog/CatalogPage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BookOpen,
@@ -28,103 +21,80 @@ import {
   FileText,
   Search,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-const digitalBooks = [
-  {
-    id: 1,
-    title: "Inteligencia Artificial: Un Enfoque Moderno",
-    author: "Stuart Russell, Peter Norvig",
-    category: "Tecnología",
-    year: 2021,
-    format: "PDF",
-    size: "12.5 MB",
-    pages: 1152,
-    downloads: 245,
-    views: 890,
-    type: "libro",
-  },
-  {
-    id: 2,
-    title: "Programación Avanzada en Python",
-    author: "Mark Lutz",
-    category: "Tecnología",
-    year: 2023,
-    format: "PDF",
-    size: "8.2 MB",
-    pages: 624,
-    downloads: 189,
-    views: 567,
-    type: "libro",
-  },
-  {
-    id: 3,
-    title: "Machine Learning y Big Data",
-    author: "Juan Pérez López",
-    category: "Tecnología",
-    year: 2024,
-    format: "PDF",
-    size: "5.8 MB",
-    pages: 198,
-    downloads: 45,
-    views: 123,
-    type: "tesis",
-  },
-  {
-    id: 4,
-    title: "Marketing Digital en Redes Sociales",
-    author: "María García",
-    category: "Negocios",
-    year: 2024,
-    format: "PDF",
-    size: "3.2 MB",
-    pages: 156,
-    downloads: 67,
-    views: 234,
-    type: "tesis",
-  },
-];
+type Props = {
+  materials: DigitalMaterial[];
+  downloads: UserDownload[];
+};
 
-const myDownloads = [
-  {
-    id: 2,
-    title: "Programación Avanzada en Python",
-    author: "Mark Lutz",
-    downloadDate: "2025-10-15",
-    lastRead: "2025-10-20",
-  },
-  {
-    id: 1,
-    title: "Inteligencia Artificial: Un Enfoque Moderno",
-    author: "Stuart Russell",
-    downloadDate: "2025-09-28",
-    lastRead: "2025-10-18",
-  },
-];
-
-export function DigitalPage() {
+export function DigitalPage({ materials, downloads }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMaterial, setSelectedMaterial] = useState<
-    (typeof digitalBooks)[0] | null
-  >(null);
+  const [selectedBook, setSelectedBook] = useState<UIBook | null>(null);
   const [showDialog, setShowDialog] = useState(false);
-  const [viewerMode, setViewerMode] = useState(false);
 
-  const filteredMaterials = digitalBooks.filter(
-    (material) =>
-      material.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      material.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      material.category.toLowerCase().includes(searchTerm.toLowerCase())
+  const mapType = (t: DigitalMaterial["type"]): UIBook["type"] =>
+    t === "digital" ? "Digital" : "Tesis";
+
+  const mapStatus = (s: DigitalMaterial["status"]): UIBook["status"] =>
+    s === "available"
+      ? "Disponible"
+      : s === "loaned"
+      ? "Prestado"
+      : "Reservado";
+
+  const books: UIBook[] = useMemo(
+    () =>
+      materials.map((m) => ({
+        id: m.id,
+        title: m.title,
+        author: m.author,
+        category: m.category ?? "General",
+        year: m.year ?? 0,
+        type: mapType(m.type),
+        status: mapStatus(m.status),
+        isbn: m.isbn ?? "",
+        description: m.description ?? "",
+        fileUrl: m.file_url,
+        copiesTotal: null,
+        copiesAvailable: null,
+      })),
+    [materials]
   );
 
-  const handleViewDetails = (material: (typeof digitalBooks)[0]) => {
-    setSelectedMaterial(material);
-    setShowDialog(true);
-  };
+  const filteredBooks = books.filter((book) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      book.title.toLowerCase().includes(term) ||
+      book.author.toLowerCase().includes(term) ||
+      book.category.toLowerCase().includes(term) ||
+      book.isbn.toLowerCase().includes(term)
+    );
+  });
 
-  const handleReadOnline = () => {
-    setShowDialog(false);
-    setViewerMode(true);
+  const myDownloads = useMemo(
+    () =>
+      downloads.map((d) => ({
+        id: d.id,
+        materialId: d.material_id,
+        title: d.material?.title ?? "Material",
+        author: d.material?.author ?? "",
+        downloadDate: d.downloaded_at,
+      })),
+    [downloads]
+  );
+
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case "Disponible":
+        return "default" as const;
+      case "Prestado":
+        return "secondary" as const;
+      case "Reservado":
+        return "outline" as const;
+      default:
+        return "outline" as const;
+    }
   };
 
   return (
@@ -181,7 +151,7 @@ export function DigitalPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl">
-                  {digitalBooks.filter((b) => b.type === "libro").length}
+                  {books.filter((b) => b.type === "Digital").length}
                 </div>
               </CardContent>
             </Card>
@@ -193,7 +163,7 @@ export function DigitalPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl">
-                  {digitalBooks.filter((b) => b.type === "tesis").length}
+                  {books.filter((b) => b.type === "Tesis").length}
                 </div>
               </CardContent>
             </Card>
@@ -210,85 +180,15 @@ export function DigitalPage() {
           </div>
 
           {/* Resultados */}
-          <div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Mostrando {filteredMaterials.length} material(es)
-            </p>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredMaterials.map((material) => (
-                <Card
-                  key={material.id}
-                  className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => handleViewDetails(material)}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-base line-clamp-2">
-                          {material.title}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {material.author}
-                        </p>
-                      </div>
-                      <FileText className="h-5 w-5 text-primary flex-shrink-0 ml-2" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex gap-2 flex-wrap">
-                        <Badge variant="outline">{material.category}</Badge>
-                        <Badge
-                          variant="outline"
-                          className="bg-accent/10 text-accent-foreground"
-                        >
-                          {material.type === "libro" ? "Libro" : "Tesis"}
-                        </Badge>
-                      </div>
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <p>Formato: {material.format}</p>
-                        <p>Tamaño: {material.size}</p>
-                        <p>Páginas: {material.pages}</p>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
-                        <span className="flex items-center gap-1">
-                          <Download className="h-3 w-3" />
-                          {material.downloads}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Eye className="h-3 w-3" />
-                          {material.views}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Eye className="mr-1 h-3 w-3" />
-                      Leer
-                    </Button>
-                    <Button size="sm" className="flex-1">
-                      <Download className="mr-1 h-3 w-3" />
-                      Descargar
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-
-            {filteredMaterials.length === 0 && (
-              <Card className="p-12">
-                <div className="text-center space-y-2">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <h3>No se encontraron materiales</h3>
-                  <p className="text-muted-foreground">
-                    Intenta con otros términos de búsqueda
-                  </p>
-                </div>
-              </Card>
-            )}
-          </div>
+          <CatalogGrid
+            books={filteredBooks}
+            getStatusVariant={getStatusVariant}
+            onBookClick={(book) => {
+              setSelectedBook(book);
+              setShowDialog(true);
+            }}
+            canEdit={false}
+          />
         </TabsContent>
 
         <TabsContent value="downloads">
@@ -320,10 +220,6 @@ export function DigitalPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Última lectura:{" "}
-                        {new Date(download.lastRead).toLocaleDateString(
-                          "es-ES"
-                        )}
                       </span>
                     </div>
                   </div>
@@ -353,96 +249,16 @@ export function DigitalPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog de detalles */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{selectedMaterial?.title}</DialogTitle>
-            <DialogDescription>{selectedMaterial?.author}</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label>Categoría</Label>
-                <p>{selectedMaterial?.category}</p>
-              </div>
-              <div>
-                <Label>Tipo</Label>
-                <p className="capitalize">{selectedMaterial?.type}</p>
-              </div>
-              <div>
-                <Label>Año de Publicación</Label>
-                <p>{selectedMaterial?.year}</p>
-              </div>
-              <div>
-                <Label>Formato</Label>
-                <p>{selectedMaterial?.format}</p>
-              </div>
-              <div>
-                <Label>Tamaño del Archivo</Label>
-                <p>{selectedMaterial?.size}</p>
-              </div>
-              <div>
-                <Label>Número de Páginas</Label>
-                <p>{selectedMaterial?.pages}</p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex items-center gap-2">
-                <Download className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">
-                  {selectedMaterial?.downloads} descargas
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Eye className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">
-                  {selectedMaterial?.views} vistas
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleReadOnline}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              Leer en Línea
-            </Button>
-            <Button className="flex-1">
-              <Download className="mr-2 h-4 w-4" />
-              Descargar PDF
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Visor de PDF simulado */}
-      {viewerMode && (
-        <Dialog open={viewerMode} onOpenChange={setViewerMode}>
-          <DialogContent className="max-w-4xl h-[80vh]">
-            <DialogHeader>
-              <DialogTitle>{selectedMaterial?.title}</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 bg-gray-100 rounded-lg flex items-center justify-center">
-              <div className="text-center space-y-4">
-                <FileText className="h-16 w-16 mx-auto text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  Visor de PDF - Aquí se mostraría el contenido del documento
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedMaterial?.title} ({selectedMaterial?.pages} páginas)
-                </p>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <CatalogBookDialog
+        book={selectedBook}
+        open={showDialog}
+        onOpenChange={setShowDialog}
+        getStatusVariant={getStatusVariant}
+        reserving={false}
+        reserveMsg={null}
+        onReserve={() => {}}
+        onLoan={() => {}}
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FileText, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -21,11 +21,23 @@ import {
   FileUploadList,
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 type CategoryLite = { id: string; name: string; slug: string | null };
@@ -39,6 +51,12 @@ const materialFormSchema = z.object({
     .optional()
     .refine((val) => !val || (!Number.isNaN(Number(val)) && Number(val) > 0), {
       message: "Año inválido",
+    }),
+  copies: z
+    .string()
+    .optional()
+    .refine((val) => !val || (!Number.isNaN(Number(val)) && Number(val) > 0), {
+      message: "Unidades inválidas",
     }),
   type: z.enum(["physical", "digital"], {
     message: "El tipo es obligatorio",
@@ -65,10 +83,19 @@ type UploadDriveResult = {
 
 type Props = {
   categories: CategoryLite[];
-  createMaterialAction?: (values: Omit<MaterialFormInput, "file">) => Promise<void>;
+  createMaterialAction?: (
+    values: Omit<MaterialFormInput, "file">
+  ) => Promise<void>;
+  defaultValues?: Partial<MaterialFormInput>;
+  title?: string;
 };
 
-export function CreateMaterialPage({ categories, createMaterialAction }: Props) {
+export function CreateMaterialPage({
+  categories,
+  createMaterialAction,
+  defaultValues,
+  title = "Nuevo material",
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isUploading, setIsUploading] = useState(false);
@@ -76,24 +103,37 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
   const form = useForm<MaterialFormInput>({
     resolver: zodResolver(materialFormSchema),
     defaultValues: {
-      title: "",
-      author: "",
-      categoryIds: [],
-      year: "",
-      type: "physical",
-      status: "available",
-      isbn: "",
+      title: defaultValues?.title ?? "",
+      author: defaultValues?.author ?? "",
+      categoryIds: defaultValues?.categoryIds ?? [],
+      year: defaultValues?.year ?? "",
+      copies: defaultValues?.copies ?? "1",
+      type: defaultValues?.type ?? "physical",
+      status: defaultValues?.status ?? "available",
+      isbn: defaultValues?.isbn ?? "",
       file: [],
-      description: "",
+      description: defaultValues?.description ?? "",
     },
   });
 
   const watchType = form.watch("type");
 
+  useEffect(() => {
+    if (watchType === "digital") {
+      form.setValue("status", "available", {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+    }
+  }, [watchType, form]);
+
   const handleSubmit = async (values: MaterialFormInput) => {
     const { file, ...rest } = values;
 
-    const firstFile: File | undefined = Array.isArray(file) ? file[0] : undefined;
+    const firstFile: File | undefined = Array.isArray(file)
+      ? file[0]
+      : undefined;
 
     let filePath: string | undefined;
 
@@ -141,12 +181,13 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2>Nuevo material</h2>
+          <h2>{title}</h2>
           <p className="text-muted-foreground">
-            Completa la información para registrar un nuevo material en el catálogo.
+            Completa la información para registrar un nuevo material en el
+            catálogo.
           </p>
         </div>
-        <Button variant="outline" onClick={() => router.push("/catalog")}>
+        <Button variant="outline" href="/catalog">
           Volver al catálogo
         </Button>
       </div>
@@ -170,7 +211,11 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                     <FormItem className="space-y-2">
                       <Label htmlFor="material-title">Título</Label>
                       <FormControl>
-                        <Input id="material-title" placeholder="Título del material" {...field} />
+                        <Input
+                          id="material-title"
+                          placeholder="Título del material"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -184,7 +229,11 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                     <FormItem className="space-y-2">
                       <Label htmlFor="material-author">Autor</Label>
                       <FormControl>
-                        <Input id="material-author" placeholder="Nombre del autor" {...field} />
+                        <Input
+                          id="material-author"
+                          placeholder="Nombre del autor"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -216,7 +265,11 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                     <FormItem className="space-y-2">
                       <Label htmlFor="material-isbn">ISBN</Label>
                       <FormControl>
-                        <Input id="material-isbn" placeholder="Opcional" {...field} />
+                        <Input
+                          id="material-isbn"
+                          placeholder="Opcional"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -224,32 +277,37 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="categoryIds"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <Label htmlFor="material-category">Categorías</Label>
-                    <FormControl>
-                      <MultiSelect
-                        options={[
-                          { label: "Sin categoría", value: "none" },
-                          ...categories.map((c) => ({ label: c.name, value: c.id })),
-                        ]}
-                        value={field.value?.length ? field.value : []}
-                        onChange={(vals) => {
-                          const filtered = vals.filter((v) => v !== "none");
-                          field.onChange(filtered);
-                        }}
-                        placeholder="Selecciona una o varias categorías"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="categoryIds"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <Label htmlFor="material-category">Categorías</Label>
+                      <FormControl>
+                        <MultiSelect
+                          options={[
+                            { label: "Sin categoría", value: "none" },
+                            ...categories.map((c) => ({
+                              label: c.name,
+                              value: c.id,
+                            })),
+                          ]}
+                          value={field.value?.length ? field.value : []}
+                          onChange={(vals) => {
+                            const filtered = vals.filter((v) => v !== "none");
+                            field.onChange(filtered);
+                          }}
+                          placeholder="Selecciona una o varias categorías"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-              <div className="flex flex-wrap gap-4">
+              <div className="grid gap-4 md:grid-cols-3">
                 <FormField
                   control={form.control}
                   name="status"
@@ -257,12 +315,21 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                     <FormItem className="space-y-2">
                       <Label htmlFor="material-status">Estado</Label>
                       <FormControl>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <SelectTrigger id="material-status" className="w-auto min-w-[140px]">
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={watchType === "digital"}
+                        >
+                          <SelectTrigger
+                            id="material-status"
+                            className="w-auto min-w-[140px]"
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="available">Disponible</SelectItem>
+                            <SelectItem value="available">
+                              Disponible
+                            </SelectItem>
                             <SelectItem value="loaned">Prestado</SelectItem>
                             <SelectItem value="reserved">Reservado</SelectItem>
                           </SelectContent>
@@ -280,8 +347,14 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                     <FormItem className="space-y-2">
                       <Label htmlFor="material-type">Tipo</Label>
                       <FormControl>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <SelectTrigger id="material-type" className="w-auto min-w-[140px]">
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger
+                            id="material-type"
+                            className="w-auto min-w-[140px]"
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -294,6 +367,28 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                     </FormItem>
                   )}
                 />
+
+                {watchType === "physical" && (
+                  <FormField
+                    control={form.control}
+                    name="copies"
+                    render={({ field }) => (
+                      <FormItem className="space-y-2">
+                        <Label htmlFor="material-copies">Unidades</Label>
+                        <FormControl>
+                          <Input
+                            id="material-copies"
+                            type="number"
+                            min={1}
+                            placeholder="Ej. 3"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
 
               {watchType === "digital" && (
@@ -316,14 +411,21 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                                 <Upload className="h-5 w-5" />
                               </div>
                               <div className="text-center">
-                                <p className="text-sm font-medium">Drag &amp; drop files here</p>
+                                <p className="text-sm font-medium">
+                                  Arrastra y suelta el archivo aquí
+                                </p>
                                 <p className="text-xs text-muted-foreground">
-                                  Or click to browse (max 2 files, up to 5MB each)
+                                  O haz clic para buscar (máx. 1 archivo, hasta
+                                  10MB)
                                 </p>
                               </div>
                               <FileUploadTrigger asChild>
-                                <Button type="button" variant="outline" size="sm">
-                                  Browse files
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  Buscar archivo
                                 </Button>
                               </FileUploadTrigger>
                             </div>
@@ -337,11 +439,15 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                                   value={file}
                                 >
                                   <FileUploadItemPreview className="bg-transparent">
-                                      <FileText className="h-6 w-6 text-foreground" />
+                                    <FileText className="h-6 w-6 text-foreground" />
                                   </FileUploadItemPreview>
                                   <FileUploadItemMetadata />
                                   <FileUploadItemDelete>
-                                    <Button type="button" variant="ghost" size="icon">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                    >
                                       <X className="h-4 w-4" />
                                     </Button>
                                   </FileUploadItemDelete>
@@ -379,7 +485,7 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push("/catalog")}
+                  href="/catalog"
                   disabled={isPending}
                 >
                   Cancelar
@@ -388,8 +494,8 @@ export function CreateMaterialPage({ categories, createMaterialAction }: Props) 
                   {isUploading
                     ? "Subiendo archivo..."
                     : isPending
-                      ? "Guardando..."
-                      : "Guardar"}
+                    ? "Guardando..."
+                    : "Guardar"}
                 </Button>
               </div>
             </form>

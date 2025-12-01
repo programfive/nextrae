@@ -1,4 +1,4 @@
-import { createReservation } from "@/actions/reservations";
+import { createLoan } from "@/actions/loans";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -20,11 +20,11 @@ export async function POST(req: Request) {
     }
 
     const { materialId } = parsed.data;
-    const result = await createReservation(materialId);
+    const result = await createLoan(materialId);
 
     if (!result.ok) {
       return NextResponse.json(
-        { ok: false, error: result.error ?? "No se pudo crear la reserva" },
+        { ok: false, error: result.error ?? "No se pudo crear el préstamo" },
         { status: 400 }
       );
     }

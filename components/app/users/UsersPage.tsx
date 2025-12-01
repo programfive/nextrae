@@ -2,14 +2,39 @@
 import { isEmailAvailable, isFullNameAvailable } from "@/actions/auth";
 import type { RoleCode, UserListItem, UserStats } from "@/actions/users";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { InputPassword } from "@/components/ui/input-password";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { userDialogSchema } from "@/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,8 +64,11 @@ export function UsersPage(props: UsersPageProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [formRole, setFormRole] = useState<RoleCode>("user");
+  const [formRole, setFormRole] = useState<RoleCode>("usuario");
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [roles, setRoles] = useState<{ code: RoleCode; name: string }[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   type UserDialogFormValues = z.infer<typeof userDialogSchema>;
 
@@ -55,11 +83,18 @@ export function UsersPage(props: UsersPageProps) {
     },
   });
 
-  const [careers, setCareers] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [careers, setCareers] = useState<
+    { id: string; name: string; code: string }[]
+  >([]);
 
   useEffect(() => {
     setLocalUsers(users);
   }, [users]);
+
+  useEffect(() => {
+    // Reiniciar a la primera página cuando cambian los filtros
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
 
   useEffect(() => {
     const fetchCareers = async () => {
@@ -80,6 +115,33 @@ export function UsersPage(props: UsersPageProps) {
     fetchCareers();
   }, []);
 
+  useEffect(() => {
+    const fetchRoles = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("roles")
+        .select("code, name")
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("Error loading roles", error);
+        return;
+      }
+
+      type DbRole = { code: RoleCode; name: string };
+      const typedRoles = (data ?? []) as DbRole[];
+
+      setRoles(typedRoles);
+
+      if (typedRoles.length > 0 && !isEditing) {
+        const usuarioRole = typedRoles.find((r) => r.code === "usuario");
+        setFormRole((usuarioRole?.code ?? typedRoles[0].code) as RoleCode);
+      }
+    };
+
+    fetchRoles();
+  }, [isEditing]);
+
   const filteredUsers = localUsers.filter((user) => {
     const carrera = ""; // pendiente de modelar en BD
     const matchesSearch =
@@ -92,6 +154,13 @@ export function UsersPage(props: UsersPageProps) {
 
     return matchesSearch && matchesRole;
   });
+
+  const totalUsers = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalUsers / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
   const handleEditUser = (user: UserListItem) => {
     setSelectedUser(user);
@@ -111,7 +180,7 @@ export function UsersPage(props: UsersPageProps) {
   const handleAddUser = () => {
     setSelectedUser(null);
     setIsEditing(false);
-    setFormRole("user");
+    setFormRole("usuario");
     setCurrentStep(1);
     form.reset({
       full_name: "",
@@ -143,15 +212,17 @@ export function UsersPage(props: UsersPageProps) {
 
     await toast.promise(
       (async () => {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name,
+        const { data: authData, error: authError } = await supabase.auth.signUp(
+          {
+            email,
+            password,
+            options: {
+              data: {
+                full_name,
+              },
             },
-          },
-        });
+          }
+        );
 
         if (authError) {
           throw new Error(authError.message);
@@ -350,7 +421,9 @@ export function UsersPage(props: UsersPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UsersTable users={filteredUsers} onEditUser={handleEditUser} />
+          <div className="w-full overflow-x-auto">
+            <UsersTable users={paginatedUsers} onEditUser={handleEditUser} />
+          </div>
 
           {filteredUsers.length === 0 && (
             <div className="text-center py-12">
@@ -359,6 +432,40 @@ export function UsersPage(props: UsersPageProps) {
               <p className="text-muted-foreground">
                 Intenta ajustar los filtros de búsqueda
               </p>
+            </div>
+          )}
+
+          {filteredUsers.length > 0 && (
+            <div className="flex flex-col items-center justify-between gap-4 pt-4 text-sm text-muted-foreground md:flex-row">
+              <span>
+                Mostrando {startIndex + 1}–{Math.min(endIndex, totalUsers)} de{" "}
+                {totalUsers} usuario(s)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={safePage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <span>
+                  Página {safePage} de {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={safePage === totalPages}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                >
+                  Siguiente
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -383,56 +490,33 @@ export function UsersPage(props: UsersPageProps) {
               )}
               className="space-y-6"
             >
-            {currentStep === 1 && (
-              <div className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="full_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label>Nombre completo</Label>
-                      <FormControl>
-                        <Input placeholder="Nombre y apellidos" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label>Correo institucional</Label>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="correo@institucion.edu"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {currentStep === 1 && (
+                <div className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="career_id"
+                    name="full_name"
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Carrera (opcional)</Label>
+                        <Label>Nombre completo</Label>
                         <FormControl>
-                          <Combobox
-                            items={careers.map((career) => ({
-                              label: career.name,
-                              value: career.id,
-                            }))}
-                            value={field.value || ""}
-                            onChange={(value) => field.onChange(value)}
-                            placeholder="Selecciona una carrera"
+                          <Input placeholder="Nombre y apellidos" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Label>Correo institucional</Label>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="correo@institucion.edu"
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -440,66 +524,92 @@ export function UsersPage(props: UsersPageProps) {
                     )}
                   />
 
-                  <FormItem>
-                    <Label>Rol</Label>
-                    <FormControl>
-                      <Select
-                        value={formRole}
-                        onValueChange={(value) =>
-                          setFormRole(value as RoleCode)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un rol" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="user">Usuario</SelectItem>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                  </FormItem>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="career_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Label>Carrera (opcional)</Label>
+                          <FormControl>
+                            <Combobox
+                              items={careers.map((career) => ({
+                                label: career.name,
+                                value: career.id,
+                              }))}
+                              value={field.value || ""}
+                              onChange={(value) => field.onChange(value)}
+                              placeholder="Selecciona una carrera"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormItem>
+                      <Label>Rol</Label>
+                      <FormControl>
+                        <Select
+                          value={formRole}
+                          onValueChange={(value) =>
+                            setFormRole(value as RoleCode)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un rol" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles.map((role) => (
+                              <SelectItem key={role.code} value={role.code}>
+                                {role.name || role.code}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {!isEditing && currentStep === 2 && (
-              <div className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label>Contraseña</Label>
-                      <FormControl>
-                        <InputPassword {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {!isEditing && currentStep === 2 && (
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Label>Contraseña</Label>
+                        <FormControl>
+                          <InputPassword {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="repeatPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label>Repite la contraseña</Label>
-                      <FormControl>
-                        <InputPassword {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
+                  <FormField
+                    control={form.control}
+                    name="repeatPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Label>Repite la contraseña</Label>
+                        <FormControl>
+                          <InputPassword {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
-            {!isEditing && currentStep === 3 && (
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>Revisa que los datos ingresados sean correctos.</p>
-              </div>
-            )}
+              {!isEditing && currentStep === 3 && (
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>Revisa que los datos ingresados sean correctos.</p>
+                </div>
+              )}
 
               <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
                 <div className="flex gap-2">

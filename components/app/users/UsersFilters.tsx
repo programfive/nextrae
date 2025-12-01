@@ -3,11 +3,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Search } from "lucide-react";
 
@@ -50,9 +50,9 @@ export function UsersFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los roles</SelectItem>
-                <SelectItem value="admin">Administradores</SelectItem>
-                <SelectItem value="librarian">Bibliotecarios</SelectItem>
-                <SelectItem value="user">Estudiantes</SelectItem>
+                <SelectItem value="administrador">Administradores</SelectItem>
+                <SelectItem value="bibliotecario">Bibliotecarios</SelectItem>
+                <SelectItem value="usuario">Estudiantes</SelectItem>
               </SelectContent>
             </Select>
           </div>

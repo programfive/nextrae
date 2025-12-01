@@ -1,8 +1,7 @@
 "use client";
 
-import { ReactNode, useCallback } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -17,38 +16,48 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-  BookOpen,
-  Home,
-  Search,
-  BookMarked,
-  Calendar,
-  FileText,
-  User,
-  Settings,
-  LogOut,
-  BarChart3,
-  Users,
-  Database,
-  Shield,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
+import {
+  BarChart3,
+  BookMarked,
+  BookOpen,
+  Calendar,
+  Database,
+  FileText,
+  Home,
+  LogOut,
+  Search,
+  Settings,
+  Shield,
+  User,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { ReactNode, useCallback } from "react";
 
 interface DashboardLayoutProps {
   children: ReactNode;
   role?: "admin" | "librarian" | "user";
-  userName?: string;
+  userName?: string | null;
+  userEmail?: string | null;
 }
 
 export function DashboardLayout({
   children,
   role = "admin",
-  userName = "Usuario",
+  userName,
+  userEmail,
 }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const displayName =
+    userName && userName.trim().length > 0
+      ? userName
+      : userEmail && userEmail.trim().length > 0
+      ? userEmail
+      : "Usuario";
 
   const userMenuItems = [
     { href: "/dashboard", label: "Inicio", icon: Home },
@@ -80,7 +89,11 @@ export function DashboardLayout({
   ];
 
   const menuItems =
-    role === "admin" ? adminMenuItems : role === "librarian" ? librarianMenuItems : userMenuItems;
+    role === "admin"
+      ? adminMenuItems
+      : role === "librarian"
+      ? librarianMenuItems
+      : userMenuItems;
 
   const getRoleName = () => {
     if (role === "admin") return "Administrador";
@@ -94,7 +107,8 @@ export function DashboardLayout({
     router.push("/auth/login");
   }, [router]);
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + "/");
 
   return (
     <SidebarProvider>
@@ -119,7 +133,11 @@ export function DashboardLayout({
                 <SidebarMenu>
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild isActive={isActive(item.href)} tooltip={item.label}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.href)}
+                        tooltip={item.label}
+                      >
                         <Link href={item.href}>
                           <item.icon className="w-4 h-4" />
                           <span>{item.label}</span>
@@ -152,11 +170,13 @@ export function DashboardLayout({
             <div className="flex items-center gap-3 mb-3">
               <Avatar className="w-10 h-10">
                 <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                  {userName.charAt(0).toUpperCase()}
+                  {displayName.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-sidebar-foreground truncate">{userName}</p>
+                <p className="text-sm text-sidebar-foreground truncate">
+                  {displayName}
+                </p>
                 <p className="text-xs text-sidebar-foreground/70 flex items-center gap-1">
                   <Shield className="w-3 h-3" />
                   {getRoleName()}
